@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer churn score</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #1c1917;
+      --muted: #57534e;
+      --line: #e7e5e4;
+      --paper: #f6f3ee;
+      --card: #ffffff;
+      --accent: #0f4c5c;
+      --accent-ink: #ffffff;
+      --low: #1b7f4e;
+      --medium: #a15c07;
+      --high: #b42318;
+      --error: #9f1239;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+      line-height: 1.45;
+    }
+    main {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+    }
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      letter-spacing: -0.03em;
+    }
+    header p { margin: 0; color: var(--muted); }
+    .meta { margin-top: 10px; font-size: 0.95rem; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(260px, 0.9fr);
+      gap: 24px;
+      margin-top: 28px;
+      align-items: start;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+    }
+    .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+    button, .examples button {
+      font: inherit;
+      cursor: pointer;
+    }
+    .examples button, #submit-button {
+      border: 1px solid var(--accent);
+      background: var(--card);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 8px 14px;
+    }
+    #submit-button {
+      background: var(--accent);
+      color: var(--accent-ink);
+      margin-top: 16px;
+      padding: 10px 18px;
+    }
+    #submit-button:disabled { opacity: 0.6; cursor: progress; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px 16px;
+    }
+    label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    input, select {
+      width: 100%;
+      border: 1px solid #d6d3d1;
+      border-radius: 8px;
+      padding: 8px 10px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+    }
+    input:focus, select:focus {
+      outline: 2px solid var(--accent);
+      outline-offset: 1px;
+    }
+    .result { position: sticky; top: 16px; }
+    .result h2 { margin: 0 0 8px; font-size: 1.1rem; }
+    .eyebrow {
+      margin: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    .probability {
+      margin: 4px 0;
+      font-size: 3rem;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      color: var(--tone, var(--ink));
+    }
+    .tier { margin: 8px 0; font-size: 1.25rem; font-weight: 700; color: var(--tone, var(--ink)); }
+    .detail, .hint { color: var(--muted); font-size: 0.92rem; }
+    .tier-low { --tone: var(--low); border-color: var(--low); }
+    .tier-medium { --tone: var(--medium); border-color: var(--medium); }
+    .tier-high { --tone: var(--high); border-color: var(--high); }
+    .tier-error { --tone: var(--error); border-color: var(--error); }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #fafaf9;
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 0.82rem;
+      overflow: auto;
+    }
+    h2.section { font-size: 1rem; margin: 22px 0 8px; }
+    @media (max-width: 800px) {
+      .layout { grid-template-columns: 1fr; }
+      .result { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Customer churn score</h1>
+      <p>Enter a telco account and the saved model returns a churn probability and a risk tier.</p>
+      <p class="meta">Serving {{ served.label }}. Holdout precision {{ "%.3f"|format(served.precision) }}, recall {{ "%.3f"|format(served.recall) }}, F1 {{ "%.3f"|format(served.f1) }}, AUC {{ "%.3f"|format(served.roc_auc) }}.</p>
+    </header>
+    <div class="layout">
+      <section class="card">
+        <div class="examples">
+          <button type="button" data-example="high_risk">Short-tenure fiber example</button>
+          <button type="button" data-example="low_risk">Long-tenure contract example</button>
+        </div>
+        <form id="score-form" autocomplete="off">
+          <div class="grid">
+            {% for field in fields %}
+            <div>
+              <label for="{{ field.name }}">{{ field.label }}</label>
+              {% if field.kind == "select" %}
+              <select id="{{ field.name }}" name="{{ field.name }}" required>
+                {% for option in field.options %}
+                <option value="{{ option }}"{% if default[field.name]|string == option|string %} selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              <input id="{{ field.name }}" name="{{ field.name }}" type="number" required
+                     min="{{ field.min }}" max="{{ field.max }}" step="{{ field.step }}"
+                     value="{{ default[field.name] }}">
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          <button id="submit-button" type="submit">Score customer</button>
+        </form>
+        <h2 class="section">JSON sent to POST /predict</h2>
+        <pre id="payload-preview"></pre>
+        <noscript><p>This form uses JavaScript to call the scoring endpoint.</p></noscript>
+      </section>
+      <section id="result" class="result card" aria-live="polite">
+        <h2>Result</h2>
+        <p class="hint">Score a customer to see the churn probability and risk tier.</p>
+      </section>
+    </div>
+  </main>
+  <script id="examples-data" type="application/json">{{ examples_json | safe }}</script>
+  <script>
+    const numericFields = new Set(["SeniorCitizen", "tenure", "MonthlyCharges", "TotalCharges"]);
+    const examples = JSON.parse(document.getElementById("examples-data").textContent);
+    const form = document.getElementById("score-form");
+    const preview = document.getElementById("payload-preview");
+    const result = document.getElementById("result");
+    const submitButton = document.getElementById("submit-button");
+
+    function payloadFromForm() {
+      const data = {};
+      for (const [key, value] of new FormData(form).entries()) {
+        data[key] = numericFields.has(key) ? Number(value) : value;
+      }
+      return data;
+    }
+
+    function refreshPreview() {
+      preview.textContent = JSON.stringify(payloadFromForm(), null, 2);
+    }
+
+    function applyExample(name) {
+      const example = examples[name];
+      for (const [key, value] of Object.entries(example)) {
+        const field = form.elements.namedItem(key);
+        if (field) {
+          field.value = String(value);
+        }
+      }
+      refreshPreview();
+    }
+
+    function formatError(payload) {
+      if (!payload || payload.detail == null) {
+        return "Request failed";
+      }
+      if (typeof payload.detail === "string") {
+        return payload.detail;
+      }
+      if (Array.isArray(payload.detail)) {
+        return payload.detail.map((item) => {
+          const where = Array.isArray(item.loc)
+            ? item.loc.filter((part) => part !== "body").join(".")
+            : "";
+          return where ? `${where}: ${item.msg}` : (item.msg || "Invalid value");
+        }).join("\n");
+      }
+      return "Request failed";
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    document.querySelectorAll("[data-example]").forEach((button) => {
+      button.addEventListener("click", () => applyExample(button.dataset.example));
+    });
+    form.addEventListener("input", refreshPreview);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = payloadFromForm();
+      refreshPreview();
+      submitButton.disabled = true;
+      result.className = "result card";
+      result.innerHTML = "<h2>Result</h2><p>Scoring…</p>";
+      try {
+        const response = await fetch("/predict", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = await response.json();
+        if (!response.ok) {
+          result.className = "result card tier-error";
+          result.innerHTML = `<h2>Could not score</h2><pre>${escapeHtml(formatError(body))}</pre>`;
+          return;
+        }
+        const percent = (body.churn_probability * 100).toFixed(1);
+        result.className = `result card tier-${String(body.risk_tier).toLowerCase()}`;
+        result.innerHTML = `
+          <h2>Result</h2>
+          <p class="eyebrow">${escapeHtml(body.prediction)}</p>
+          <p class="probability">${percent}%</p>
+          <p class="tier">${escapeHtml(body.risk_tier)} risk</p>
+          <p class="detail">Churn probability ${Number(body.churn_probability).toFixed(4)}. Low is under 0.30, medium is under 0.60, and high is 0.60 and above. The Churn label uses a 0.50 cutoff.</p>
+        `;
+      } catch (error) {
+        result.className = "result card tier-error";
+        result.innerHTML = `<h2>Could not score</h2><pre>${escapeHtml(String(error))}</pre>`;
+      } finally {
+        submitButton.disabled = false;
+      }
+    });
+    refreshPreview();
+  </script>
+</body>
+</html>

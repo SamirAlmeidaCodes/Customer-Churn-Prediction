@@ -1,0 +1,13 @@
+.venv
+**/__pycache__
+**/*.pyc
+.pytest_cache
+.ipynb_checkpoints
+.git
+notebooks
+tests
+models
+requirements-dev.txt
+README.md
+Dockerfile
+.dockerignore
