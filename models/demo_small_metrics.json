@@ -1,0 +1,177 @@
+{
+  "dataset": "Telco Customer Churn",
+  "n_rows": 800,
+  "n_features": 19,
+  "positive_class": "Churn",
+  "test_size": 0.3,
+  "random_state": 42,
+  "cv_folds": 5,
+  "selection_metric": "cv_f1_mean",
+  "selection_tie_break": "cv_roc_auc_mean",
+  "classification_threshold": 0.5,
+  "risk_tiers": {
+    "Low": "probability < 0.3",
+    "Medium": "0.3 <= probability < 0.6",
+    "High": "probability >= 0.6"
+  },
+  "regime": {
+    "name": "small",
+    "test_size": 0.3,
+    "cv_folds": 5,
+    "use_smote": true,
+    "smote_k_neighbors": 3,
+    "balance_classes": false,
+    "tree_model": "gradient_boosting",
+    "tree_params": {
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "max_depth": 2,
+      "subsample": 0.8,
+      "min_samples_leaf": 5,
+      "random_state": 42
+    },
+    "logistic_params": {
+      "max_iter": 1000,
+      "solver": "lbfgs",
+      "random_state": 42
+    },
+    "reason": "800 rows is under 1,000, so the small regime uses a 70/30 split and 5 folds, 100 trees of depth 2, and SMOTE with 3 neighbors.",
+    "n_rows": 800,
+    "n_minority": 212
+  },
+  "imbalance": {
+    "method": "SMOTE",
+    "applied_to": "training folds only, after encoding and scaling",
+    "sampling_strategy": "auto",
+    "params": {
+      "random_state": 42,
+      "k_neighbors": 3
+    }
+  },
+  "features": {
+    "numeric": [
+      "tenure",
+      "MonthlyCharges",
+      "TotalCharges"
+    ],
+    "categorical": [
+      "gender",
+      "SeniorCitizen",
+      "Partner",
+      "Dependents",
+      "PhoneService",
+      "MultipleLines",
+      "InternetService",
+      "OnlineSecurity",
+      "OnlineBackup",
+      "DeviceProtection",
+      "TechSupport",
+      "StreamingTV",
+      "StreamingMovies",
+      "Contract",
+      "PaperlessBilling",
+      "PaymentMethod"
+    ]
+  },
+  "hyperparameters": {
+    "logistic_regression": {
+      "max_iter": 1000,
+      "solver": "lbfgs",
+      "random_state": 42
+    },
+    "gradient_boosting": {
+      "n_estimators": 100,
+      "learning_rate": 0.1,
+      "max_depth": 2,
+      "subsample": 0.8,
+      "min_samples_leaf": 5,
+      "random_state": 42
+    }
+  },
+  "class_balance": {
+    "all": {
+      "n": 800,
+      "churn": 212,
+      "stay": 588,
+      "churn_rate": 0.265
+    },
+    "train": {
+      "n": 560,
+      "churn": 148,
+      "stay": 412,
+      "churn_rate": 0.264286
+    },
+    "test": {
+      "n": 240,
+      "churn": 64,
+      "stay": 176,
+      "churn_rate": 0.266667
+    }
+  },
+  "library_versions": {
+    "python": "3.14.4",
+    "numpy": "2.5.4",
+    "pandas": "3.1.0",
+    "scikit-learn": "1.9.1",
+    "imbalanced-learn": "0.14.2"
+  },
+  "models": {
+    "logistic_regression": {
+      "cv": {
+        "precision": {
+          "mean": 0.524645,
+          "std": 0.078564
+        },
+        "recall": {
+          "mean": 0.762989,
+          "std": 0.075033
+        },
+        "f1": {
+          "mean": 0.61994,
+          "std": 0.073754
+        },
+        "roc_auc": {
+          "mean": 0.833832,
+          "std": 0.039053
+        }
+      },
+      "holdout": {
+        "precision": 0.568421,
+        "recall": 0.84375,
+        "f1": 0.679245,
+        "roc_auc": 0.879084
+      },
+      "fit_seconds": 0.386791,
+      "fitted_iterations": null
+    },
+    "gradient_boosting": {
+      "cv": {
+        "precision": {
+          "mean": 0.579693,
+          "std": 0.123653
+        },
+        "recall": {
+          "mean": 0.634253,
+          "std": 0.11434
+        },
+        "f1": {
+          "mean": 0.596361,
+          "std": 0.079869
+        },
+        "roc_auc": {
+          "mean": 0.839162,
+          "std": 0.034913
+        }
+      },
+      "holdout": {
+        "precision": 0.614286,
+        "recall": 0.671875,
+        "f1": 0.641791,
+        "roc_auc": 0.868786
+      },
+      "fit_seconds": 0.850307,
+      "fitted_iterations": 100
+    }
+  },
+  "best_model": "logistic_regression"
+}

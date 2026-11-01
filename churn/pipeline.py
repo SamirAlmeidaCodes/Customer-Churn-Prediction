@@ -1,24 +1,34 @@
-"""Feature pipeline: impute, scale numerics, one-hot encode, then SMOTE."""
+"""Feature pipeline: impute, scale numerics, one-hot encode, then balance classes."""
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 from imblearn.over_sampling import SMOTE
 from imblearn.pipeline import Pipeline as ImbPipeline
+from sklearn.base import BaseEstimator, ClassifierMixin, clone
 from sklearn.compose import ColumnTransformer
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.utils.validation import check_is_fitted
 
 from churn.config import (
     CATEGORICAL_FEATURES,
     GRADIENT_BOOSTING_PARAMS,
     LOGISTIC_REGRESSION_PARAMS,
-    MODEL_NAMES,
     NUMERIC_FEATURES,
+    RANDOM_STATE,
     SMOTE_PARAMS,
+)
+from churn.regimes import TrainingRegime
+
+KNOWN_MODELS = (
+    "logistic_regression",
+    "gradient_boosting",
+    "hist_gradient_boosting",
 )
 
 
@@ -48,28 +58,126 @@ def build_preprocessor() -> ColumnTransformer:
     )
 
 
-def build_estimator(model_name: str):
+class BalancedSampleWeightClassifier(ClassifierMixin, BaseEstimator):
+    """Fit an inner classifier with balanced sample weights.
+
+    Gradient boosting has no class_weight argument. The weights follow
+    class_weight='balanced': each class contributes the same total weight.
+    """
+
+    def __init__(self, estimator):
+        self.estimator = estimator
+
+    def fit(self, X, y):
+        estimator = clone(self.estimator)
+        y_array = np.asarray(y)
+        classes, counts = np.unique(y_array, return_counts=True)
+        n_samples = int(y_array.shape[0])
+        n_classes = int(classes.shape[0])
+        weight_of = {
+            label: n_samples / (n_classes * int(count))
+            for label, count in zip(classes, counts)
+        }
+        sample_weight = np.array([weight_of[label] for label in y_array], dtype=float)
+        estimator.fit(X, y_array, sample_weight=sample_weight)
+        self.estimator_ = estimator
+        self.classes_ = estimator.classes_
+        return self
+
+    def predict(self, X):
+        check_is_fitted(self, "estimator_")
+        return self.estimator_.predict(X)
+
+    def predict_proba(self, X):
+        check_is_fitted(self, "estimator_")
+        return self.estimator_.predict_proba(X)
+
+    @property
+    def feature_importances_(self):
+        check_is_fitted(self, "estimator_")
+        return self.estimator_.feature_importances_
+
+
+def build_estimator(
+    model_name: str,
+    params: dict | None = None,
+    *,
+    balance_classes: bool = False,
+):
     """Return an unfitted classifier for one of the supported model names."""
     if model_name == "logistic_regression":
-        return LogisticRegression(**LOGISTIC_REGRESSION_PARAMS)
+        resolved = dict(LOGISTIC_REGRESSION_PARAMS if params is None else params)
+        if balance_classes:
+            resolved["class_weight"] = "balanced"
+        return LogisticRegression(**resolved)
     if model_name == "gradient_boosting":
-        return GradientBoostingClassifier(**GRADIENT_BOOSTING_PARAMS)
-    known = ", ".join(MODEL_NAMES)
+        resolved = dict(GRADIENT_BOOSTING_PARAMS if params is None else params)
+        resolved.pop("class_weight", None)
+        estimator = GradientBoostingClassifier(**resolved)
+        if balance_classes:
+            return BalancedSampleWeightClassifier(estimator)
+        return estimator
+    if model_name == "hist_gradient_boosting":
+        if not params:
+            raise ValueError("Histogram boosting parameters are required")
+        resolved = dict(params)
+        if balance_classes:
+            resolved["class_weight"] = "balanced"
+        return HistGradientBoostingClassifier(**resolved)
+    known = ", ".join(KNOWN_MODELS)
     raise ValueError(f"Unknown model {model_name!r}. Expected one of: {known}")
 
 
-def build_pipeline(model_name: str) -> ImbPipeline:
-    """Stack preprocessing, SMOTE, and a classifier.
+def build_pipeline(
+    model_name: str,
+    *,
+    use_smote: bool = True,
+    smote_k_neighbors: int = SMOTE_PARAMS["k_neighbors"],
+    estimator_params: dict | None = None,
+    balance_classes: bool = False,
+) -> Pipeline:
+    """Stack preprocessing, optional SMOTE, and a classifier.
 
-    imblearn's Pipeline runs the sampler during fit only, so validation rows
-    and live scoring keep the original class balance.
+    The sampler runs during fit only, so validation rows and live scoring keep
+    the original class balance. With SMOTE off, the classifier uses class
+    weights instead of synthetic rows.
     """
-    return ImbPipeline(
-        steps=[
-            ("preprocessor", build_preprocessor()),
-            ("smote", SMOTE(**SMOTE_PARAMS)),
-            ("classifier", build_estimator(model_name)),
-        ]
+    estimator = build_estimator(
+        model_name,
+        estimator_params,
+        balance_classes=balance_classes and not use_smote,
+    )
+    steps: list = [("preprocessor", build_preprocessor())]
+    if use_smote:
+        steps.append(
+            (
+                "smote",
+                SMOTE(random_state=RANDOM_STATE, k_neighbors=smote_k_neighbors),
+            )
+        )
+    steps.append(("classifier", estimator))
+    if use_smote:
+        return ImbPipeline(steps=steps)
+    return Pipeline(steps=steps)
+
+
+def build_pipeline_for_regime(model_name: str, regime: TrainingRegime) -> Pipeline:
+    """Build the logistic model or the regime's tree model."""
+    if model_name == "logistic_regression":
+        params = regime.logistic_params
+    elif model_name == regime.tree_model:
+        params = regime.tree_params
+    else:
+        raise ValueError(
+            f"Regime {regime.name} does not train {model_name!r}. "
+            f"Expected one of: {', '.join(regime.model_names)}"
+        )
+    return build_pipeline(
+        model_name,
+        use_smote=regime.use_smote,
+        smote_k_neighbors=max(regime.smote_k_neighbors, 1),
+        estimator_params=params,
+        balance_classes=regime.balance_classes,
     )
 
 

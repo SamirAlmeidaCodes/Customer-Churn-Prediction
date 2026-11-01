@@ -1,0 +1,180 @@
+{
+  "dataset": "Telco Customer Churn",
+  "n_rows": 12000,
+  "n_features": 19,
+  "positive_class": "Churn",
+  "test_size": 0.1,
+  "random_state": 42,
+  "cv_folds": 3,
+  "selection_metric": "cv_f1_mean",
+  "selection_tie_break": "cv_roc_auc_mean",
+  "classification_threshold": 0.5,
+  "risk_tiers": {
+    "Low": "probability < 0.3",
+    "Medium": "0.3 <= probability < 0.6",
+    "High": "probability >= 0.6"
+  },
+  "regime": {
+    "name": "large",
+    "test_size": 0.1,
+    "cv_folds": 3,
+    "use_smote": false,
+    "smote_k_neighbors": 0,
+    "balance_classes": true,
+    "tree_model": "hist_gradient_boosting",
+    "tree_params": {
+      "learning_rate": 0.05,
+      "max_iter": 300,
+      "max_depth": 3,
+      "early_stopping": true,
+      "n_iter_no_change": 10,
+      "validation_fraction": 0.1,
+      "random_state": 42,
+      "class_weight": "balanced"
+    },
+    "logistic_params": {
+      "max_iter": 1000,
+      "solver": "lbfgs",
+      "random_state": 42,
+      "class_weight": "balanced"
+    },
+    "reason": "12,000 rows and 3,184 churners are above 10,000, so the large regime uses a 90/10 split and 3 folds, histogram boosting capped at 300 trees, and class weights instead of SMOTE.",
+    "n_rows": 12000,
+    "n_minority": 3184
+  },
+  "imbalance": {
+    "method": "class_weight",
+    "applied_to": "training folds only, inside the classifier",
+    "sampling_strategy": "balanced",
+    "params": {}
+  },
+  "features": {
+    "numeric": [
+      "tenure",
+      "MonthlyCharges",
+      "TotalCharges"
+    ],
+    "categorical": [
+      "gender",
+      "SeniorCitizen",
+      "Partner",
+      "Dependents",
+      "PhoneService",
+      "MultipleLines",
+      "InternetService",
+      "OnlineSecurity",
+      "OnlineBackup",
+      "DeviceProtection",
+      "TechSupport",
+      "StreamingTV",
+      "StreamingMovies",
+      "Contract",
+      "PaperlessBilling",
+      "PaymentMethod"
+    ]
+  },
+  "hyperparameters": {
+    "logistic_regression": {
+      "max_iter": 1000,
+      "solver": "lbfgs",
+      "random_state": 42,
+      "class_weight": "balanced"
+    },
+    "hist_gradient_boosting": {
+      "learning_rate": 0.05,
+      "max_iter": 300,
+      "max_depth": 3,
+      "early_stopping": true,
+      "n_iter_no_change": 10,
+      "validation_fraction": 0.1,
+      "random_state": 42,
+      "class_weight": "balanced"
+    }
+  },
+  "class_balance": {
+    "all": {
+      "n": 12000,
+      "churn": 3184,
+      "stay": 8816,
+      "churn_rate": 0.265333
+    },
+    "train": {
+      "n": 10800,
+      "churn": 2866,
+      "stay": 7934,
+      "churn_rate": 0.26537
+    },
+    "test": {
+      "n": 1200,
+      "churn": 318,
+      "stay": 882,
+      "churn_rate": 0.265
+    }
+  },
+  "library_versions": {
+    "python": "3.14.4",
+    "numpy": "2.5.4",
+    "pandas": "3.1.0",
+    "scikit-learn": "1.9.1",
+    "imbalanced-learn": "0.14.2"
+  },
+  "models": {
+    "logistic_regression": {
+      "cv": {
+        "precision": {
+          "mean": 0.516537,
+          "std": 0.00664
+        },
+        "recall": {
+          "mean": 0.79867,
+          "std": 0.011454
+        },
+        "f1": {
+          "mean": 0.627232,
+          "std": 0.001363
+        },
+        "roc_auc": {
+          "mean": 0.843189,
+          "std": 0.001657
+        }
+      },
+      "holdout": {
+        "precision": 0.51992,
+        "recall": 0.820755,
+        "f1": 0.636585,
+        "roc_auc": 0.84004
+      },
+      "fit_seconds": 0.954232,
+      "fitted_iterations": null
+    },
+    "hist_gradient_boosting": {
+      "cv": {
+        "precision": {
+          "mean": 0.52805,
+          "std": 0.006712
+        },
+        "recall": {
+          "mean": 0.80565,
+          "std": 0.010671
+        },
+        "f1": {
+          "mean": 0.637868,
+          "std": 0.003185
+        },
+        "roc_auc": {
+          "mean": 0.855851,
+          "std": 0.002642
+        }
+      },
+      "holdout": {
+        "precision": 0.521739,
+        "recall": 0.792453,
+        "f1": 0.629213,
+        "roc_auc": 0.850957
+      },
+      "fit_seconds": 1.555539,
+      "fitted_iterations": 184
+    }
+  },
+  "best_model": "hist_gradient_boosting"
+}
