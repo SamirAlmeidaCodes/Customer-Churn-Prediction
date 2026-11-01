@@ -4,7 +4,7 @@ Score whether a telco customer is likely to leave. The project trains a scikit-l
 
 ## After review
 
-A human reviewed the project, and training was changed so the recipe follows the size of the table. The same three tables were trained with the old fixed recipe and with the new one. The old recipe always used an 80/20 split, 5 folds, SMOTE with 5 neighbors, and 200 gradient-boosting trees. Each pair is one run on the same machine.
+I personally reviewed the project, and training was changed so the recipe follows the size of the table. The same three tables were trained with the old fixed recipe and with the new one. The old recipe always used an 80/20 split, 5 folds, SMOTE with 5 neighbors, and 200 gradient-boosting trees. Each pair is one run on the same machine.
 
 | Table | Time | Processor time | Peak memory |
 | --- | --- | --- | --- |
