@@ -4,7 +4,7 @@ Score whether a telco customer is likely to leave. The project trains a scikit-l
 
 ## After review
 
-I personally reviewed the project, and training was changed so the recipe follows the size of the table. The same three tables were trained with the old fixed recipe and with the new one. The old recipe always used an 80/20 split, 5 folds, SMOTE with 5 neighbors, and 200 gradient-boosting trees. Each pair is one run on the same machine.
+I reviewed the training setup and changed the recipe so it adapts to the size of the table. The same three datasets were trained with the old fixed recipe and the new one. The old recipe always used an 80/20 split, 5 folds, SMOTE with 5 neighbors, and 200 gradient-boosting trees. Each pair is one run on the same machine.
 
 | Table | Time | Processor time | Peak memory |
 | --- | --- | --- | --- |
@@ -12,7 +12,7 @@ I personally reviewed the project, and training was changed so the recipe follow
 | 7,043 rows (`data/Telco-Customer-Churn.csv`) | 12.3s to 11.2s, 9% faster | 23.2s to 21.9s, 6% less | 207 MB to 208 MB, 0.3% more |
 | 12,000 rows (`data/demo_large.csv`) | 23.4s to 2.7s, 89% faster | 93.4s to 20.4s, 78% less | 219 MB to 213 MB, 2% less |
 
-The large table is where the clock time and the processor time drop. Histogram boosting replaces the 200-tree model there. Peak memory stays near the cost of loading the libraries. On the 7,043-row file the API serves, holdout precision moved from 0.564 to 0.567.
+The largest gain is on the 12,000-row table, where clock time dropped 89% and processor time dropped 78%. Histogram boosting replaces the fixed 200-tree model on larger datasets. Peak memory stays near the cost of loading the libraries. On the 7,043-row file the API serves, holdout precision moved from 0.564 to 0.567.
 
 ## Dataset
 
